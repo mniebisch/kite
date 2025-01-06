@@ -1,0 +1,5 @@
+click
+dash
+numpy
+pandas
+plotly
