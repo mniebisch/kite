@@ -12,12 +12,14 @@ from dash import Dash, Input, Output, dcc, html
 def extract_time_series_values(
     time_series_data: Dict[str, Union[int, List[float], float, Dict]]
 ) -> List[float]:
-    x_max = time_series_data["maxX"]
-    if not isinstance(x_max, int):
-        raise ValueError
     if not isinstance(time_series_data["vertices"], list):
         raise ValueError
-    values = time_series_data["vertices"][1 : x_max * 4][::4]
+    time_stamps = extract_time_series_time(time_series_data)
+    x_max = time_stamps[-1]
+    x_max_index = time_stamps.index(x_max)
+    values = time_series_data["vertices"][1::4]
+    values = values[: x_max_index + 1]
+
     return values
 
 
@@ -33,12 +35,12 @@ def extract_time_series_index(
 def extract_time_series_time(
     time_series_data: Dict[str, Union[int, List[float], float, Dict]]
 ) -> List[float]:
-    x_max = time_series_data["maxX"]
-    if not isinstance(x_max, int):
-        raise ValueError
     if not isinstance(time_series_data["vertices"], list):
         raise ValueError
-    time_stamps = time_series_data["vertices"][0 : x_max * 4][::4]
+    time_stamps = time_series_data["vertices"][::4]
+    x_max = max(time_stamps)
+    x_max_index = time_stamps.index(x_max)
+    time_stamps = time_stamps[: x_max_index + 1]
 
     return time_stamps
 
@@ -95,7 +97,7 @@ def validate_input(input_data):
 def main(file_path: pathlib.Path) -> None:
     with open(file_path, "r") as f:
         time_series_data = json.load(f)
-        time_series_data = time_series_data["diagramLines"]
+        time_series_data = time_series_data[0]["diagramLines"]
 
     validate_input(time_series_data)
 
