@@ -1,3 +1,4 @@
+import itertools
 import json
 import pathlib
 from typing import Dict, List, Union
@@ -5,6 +6,7 @@ from typing import Dict, List, Union
 import click
 import numpy as np
 import pandas as pd
+import plotly
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, dcc, html
 
@@ -127,6 +129,12 @@ def main(file_path: pathlib.Path) -> None:
         Input("time_series_variables", "value"),
     )
     def update_time_series_figure(selected_variables):
+        color_map = {
+            var_name: color
+            for var_name, color in zip(
+                variable_names, itertools.cycle(plotly.colors.qualitative.Plotly)
+            )
+        }
         layout = go.Layout(
             hoversubplots="axis",
             hovermode="x unified",
@@ -145,6 +153,7 @@ def main(file_path: pathlib.Path) -> None:
                     yaxis=yaxis,
                     mode="lines",
                     name=f"Index {var_name}",
+                    line=dict(color=color_map[var_name]),
                 )
             )
 
