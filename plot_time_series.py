@@ -3,6 +3,7 @@ import pathlib
 from typing import Dict, List, Union
 
 import click
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, dcc, html
@@ -100,46 +101,54 @@ def main(file_path: pathlib.Path) -> None:
 
     time_series_df = create_time_series_df(time_series_data)
 
-    layout = go.Layout(
-        hoversubplots="axis",
-        hovermode="x unified",
-        grid={"rows": len(time_series_df["index"].unique()), "columns": 1},
-    )
-
-    data = []
-    for i in time_series_df["index"].unique():
-        df = time_series_df[time_series_df["index"] == i]
-        yaxis = "y" if i == 0 else f"y{i+1}"
-        data.append(
-            go.Scatter(
-                x=df["time"],
-                y=df["values"],
-                xaxis="x",
-                yaxis=yaxis,
-                mode="lines",
-                name=f"Index {i}",
-            )
-        )
-
-    fig = go.Figure(data=data, layout=layout)
+    variable_names = np.sort(time_series_df["index"].unique())
 
     app = Dash(__name__)
     app.layout = html.Div(
         [
+            "Variables:",
+            dcc.Dropdown(
+                variable_names,
+                variable_names,
+                id="time_series_variables",
+                multi=True,
+            ),
             dcc.Graph(
-                id="time-series",
-                figure=fig,
-                style={"height": "100vh", "width": "100vw"},
+                id="time_series_figure",
+                style={"height": "90vh", "width": "90vw"},
             ),
         ],
-        style={
-            "height": "90vh",
-            "width": "90vw",
-            "display": "flex",
-            "justify-content": "center",
-            "align-items": "center",
-        },
     )
+
+    @app.callback(
+        Output("time_series_figure", "figure"),
+        Input("time_series_variables", "value"),
+    )
+    def update_time_series_figure(selected_variables):
+        layout = go.Layout(
+            hoversubplots="axis",
+            hovermode="x unified",
+            grid={"rows": len(selected_variables), "columns": 1},
+        )
+
+        data = []
+        for i, var_name in enumerate(selected_variables):
+            df = time_series_df[time_series_df["index"] == var_name]
+            yaxis = "y" if i == 0 else f"y{i+1}"
+            data.append(
+                go.Scatter(
+                    x=df["time"],
+                    y=df["values"],
+                    xaxis="x",
+                    yaxis=yaxis,
+                    mode="lines",
+                    name=f"Index {var_name}",
+                )
+            )
+
+        fig = go.Figure(data=data, layout=layout)
+        return fig
+
     app.run(debug=True)
 
 
