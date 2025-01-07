@@ -129,6 +129,7 @@ def main(file_path: pathlib.Path) -> None:
         Input("time_series_variables", "value"),
     )
     def update_time_series_figure(selected_variables):
+        selected_variables = sorted(selected_variables)
         color_map = {
             var_name: color
             for var_name, color in zip(
