@@ -5,6 +5,7 @@ from typing import Dict, List, Union
 import click
 import pandas as pd
 import plotly.graph_objects as go
+from dash import Dash, Input, Output, dcc, html
 
 
 def extract_time_series_values(
@@ -122,7 +123,24 @@ def main(file_path: pathlib.Path) -> None:
 
     fig = go.Figure(data=data, layout=layout)
 
-    fig.show()
+    app = Dash(__name__)
+    app.layout = html.Div(
+        [
+            dcc.Graph(
+                id="time-series",
+                figure=fig,
+                style={"height": "100vh", "width": "100vw"},
+            ),
+        ],
+        style={
+            "height": "90vh",
+            "width": "90vw",
+            "display": "flex",
+            "justify-content": "center",
+            "align-items": "center",
+        },
+    )
+    app.run(debug=True)
 
 
 if __name__ == "__main__":
