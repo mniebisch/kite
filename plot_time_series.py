@@ -1,7 +1,7 @@
 import itertools
 import json
 import pathlib
-from typing import Dict, List, Union
+from typing import Dict, List, TypeAlias, Union
 
 import click
 import numpy as np
@@ -10,10 +10,12 @@ import plotly
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, dcc, html
 
+TimeSeriesData: TypeAlias = Dict[str, Union[int, List[float], float, Dict]]
+TimeSeriesCollection: TypeAlias = List[TimeSeriesData]
+KiteData: TypeAlias = Dict[str, Union[str, TimeSeriesCollection, Dict, int]]
 
-def extract_time_series_values(
-    time_series_data: Dict[str, Union[int, List[float], float, Dict]]
-) -> List[float]:
+
+def extract_time_series_values(time_series_data: TimeSeriesData) -> List[float]:
     if not isinstance(time_series_data["vertices"], list):
         raise ValueError
     time_stamps = extract_time_series_time(time_series_data)
@@ -25,18 +27,14 @@ def extract_time_series_values(
     return values
 
 
-def extract_time_series_index(
-    time_series_data: Dict[str, Union[int, List[float], float, Dict]]
-) -> int:
+def extract_time_series_index(time_series_data: TimeSeriesData) -> int:
     index = time_series_data["index"]
     if not isinstance(index, int):
         raise ValueError
     return index
 
 
-def extract_time_series_time(
-    time_series_data: Dict[str, Union[int, List[float], float, Dict]]
-) -> List[float]:
+def extract_time_series_time(time_series_data: TimeSeriesData) -> List[float]:
     if not isinstance(time_series_data["vertices"], list):
         raise ValueError
     time_stamps = time_series_data["vertices"][::4]
@@ -47,9 +45,7 @@ def extract_time_series_time(
     return time_stamps
 
 
-def compose_time_series_data(
-    time_series_data: Dict[str, Union[int, List[float], float, Dict]]
-) -> pd.DataFrame:
+def compose_time_series_data(time_series_data: TimeSeriesData) -> pd.DataFrame:
     time_series_values = extract_time_series_values(time_series_data)
     time_series_index = extract_time_series_index(time_series_data)
     time_series_time = extract_time_series_time(time_series_data)
@@ -65,9 +61,7 @@ def compose_time_series_data(
     return time_series_df
 
 
-def create_time_series_df(
-    time_series_data: List[Dict[str, Union[int, List[float], float, Dict]]]
-) -> pd.DataFrame:
+def create_time_series_df(time_series_data: TimeSeriesCollection) -> pd.DataFrame:
     time_series_df = pd.concat(
         [compose_time_series_data(ts_data) for ts_data in time_series_data],
         ignore_index=True,
@@ -75,7 +69,7 @@ def create_time_series_df(
     return time_series_df
 
 
-def validate_input(input_data):
+def validate_input(input_data: TimeSeriesData) -> None:
     if not isinstance(input_data, list):
         raise ValueError("Input should be a list.")
 
