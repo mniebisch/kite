@@ -1,7 +1,7 @@
 import itertools
 import json
 import pathlib
-from typing import Dict, List, TypeAlias, Union
+from typing import Any, Dict, List, Tuple, TypeAlias, Union
 
 import click
 import numpy as np
@@ -9,10 +9,11 @@ import pandas as pd
 import plotly
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, dcc, html
+from numpy import typing as npt
 
 TimeSeriesData: TypeAlias = Dict[str, Union[int, List[float], float, Dict]]
 TimeSeriesCollection: TypeAlias = List[TimeSeriesData]
-KiteData: TypeAlias = Dict[str, Union[str, TimeSeriesCollection, Dict, int]]
+KiteData: TypeAlias = List[Dict[str, Union[str, TimeSeriesCollection, Dict, int]]]
 
 
 def extract_time_series_values(time_series_data: TimeSeriesData) -> List[float]:
@@ -69,7 +70,7 @@ def create_time_series_df(time_series_data: TimeSeriesCollection) -> pd.DataFram
     return time_series_df
 
 
-def validate_input(input_data: TimeSeriesData) -> None:
+def validate_input(input_data: TimeSeriesCollection) -> None:
     if not isinstance(input_data, list):
         raise ValueError("Input should be a list.")
 
@@ -80,6 +81,21 @@ def validate_input(input_data: TimeSeriesData) -> None:
         required_keys = {"index", "vertices", "minX", "maxX"}
         if not required_keys.issubset(element.keys()):
             raise ValueError(f"Each dictionary should have the keys: {required_keys}")
+
+
+def process_kite_data(kite_data: KiteData) -> pd.DataFrame:
+    observations = []
+    for observation_index, observations_data in enumerate(kite_data):
+        time_series_data = observations_data["diagramLines"]
+        if not isinstance(time_series_data, list):
+            raise ValueError("Each element in the list should be a dictionary")
+
+        validate_input(time_series_data)
+        observation = create_time_series_df(time_series_data)
+        observation["observation"] = observation_index
+        observations.append(observation)
+
+    return pd.concat(observations, ignore_index=True)
 
 
 @click.command()
@@ -93,17 +109,21 @@ def validate_input(input_data: TimeSeriesData) -> None:
 def main(file_path: pathlib.Path) -> None:
     with open(file_path, "r") as f:
         time_series_data = json.load(f)
-        time_series_data = time_series_data[0]["diagramLines"]
 
-    validate_input(time_series_data)
-
-    time_series_df = create_time_series_df(time_series_data)
+    time_series_df = process_kite_data(time_series_data)
 
     variable_names = np.sort(time_series_df["index"].unique())
+    observations = np.sort(time_series_df["observation"].unique())
 
     app = Dash(__name__)
     app.layout = html.Div(
         [
+            "Observations:",
+            dcc.Dropdown(
+                observations,
+                observations[0],
+                id="time_series_observations",
+            ),
             "Variables:",
             dcc.Dropdown(
                 variable_names,
@@ -113,7 +133,7 @@ def main(file_path: pathlib.Path) -> None:
             ),
             dcc.Graph(
                 id="time_series_figure",
-                style={"height": "90vh", "width": "90vw"},
+                style={"height": "85vh", "width": "90vw"},
             ),
         ],
     )
@@ -154,6 +174,20 @@ def main(file_path: pathlib.Path) -> None:
 
         fig = go.Figure(data=data, layout=layout)
         return fig
+
+    @app.callback(
+        Output("time_series_variables", "options"),
+        Output("time_series_variables", "value"),
+        Input("time_series_observations", "value"),
+    )
+    def update_time_series_variables(
+        selected_observation: Any,
+    ) -> Tuple[npt.NDArray, npt.NDArray]:
+        selected_variables = time_series_df[
+            time_series_df["observation"] == selected_observation
+        ]["index"].unique()
+        selected_variables = np.sort(selected_variables)
+        return selected_variables, selected_variables
 
     app.run(debug=True)
 
